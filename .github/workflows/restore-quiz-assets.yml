@@ -1,0 +1,67 @@
+name: Restore original quiz assets
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/restore-quiz-assets.yml'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download original quiz images and styles
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p images css
+          files=(
+            images/logo.webp
+            images/19-3.webp
+            images/18-3.webp
+            images/8bc94ac11389f76a8ff5f367be64a319.webp
+            images/71b9b95ef82b2491f5e65459c23af6c0.webp
+            images/1788995156905_corpo-f-regular.webp
+            images/1788995161508_corpo-m-regular.webp
+            images/1788995155017_corpo-f-flacido.webp
+            images/1788995159253_corpo-m-flacido.webp
+            images/1788995158348_corpo-f-sobrepeso.webp
+            images/1788995160239_corpo-m-sobrepeso.webp
+            images/1788995170029_area-f-abdomen.webp
+            images/1788995166648_area-m-abdomen.webp
+            images/1788995165497_area-f-peito.webp
+            images/1788995162476_area-m-peito.webp
+            images/1788995164494_area-f-flancos.webp
+            images/1788995163425_area-m-flancos.webp
+            images/1788995169009_area-f-bracos.webp
+            images/1788995167651_area-m-bracos.webp
+            css/global.CTLRVNJL.css
+            css/_slug_.K-5Jo9uw.css
+          )
+          failed=0
+          for f in "${files[@]}"; do
+            echo "Fetching $f"
+            if ! curl --fail --location --retry 2 --connect-timeout 15 --max-time 60 --silent --show-error "https://ateiler.ultimatedigital.lat/$f" -o "$f"; then
+              echo "FAILED: $f"
+              rm -f "$f"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "Some original assets could not be retrieved. No commit will be made."
+            exit 1
+          fi
+      - name: Commit recovered assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add images css
+          if git diff --cached --quiet; then
+            echo "Assets already up to date"
+          else
+            git commit -m "Restore original quiz photos and styles"
+            git push
+          fi
